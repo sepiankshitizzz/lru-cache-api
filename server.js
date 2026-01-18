@@ -3,7 +3,7 @@ const app = express();
 
 app.use(express.json());
 
-// ---------------- LRU Cache ----------------
+// ================= LRU Cache =================
 class Node {
   constructor(key, value) {
     this.key = key;
@@ -18,6 +18,7 @@ class LRUCache {
     this.capacity = capacity;
     this.map = new Map();
 
+    // Dummy head & tail
     this.head = new Node(-1, -1);
     this.tail = new Node(-1, -1);
     this.head.next = this.tail;
@@ -29,7 +30,7 @@ class LRUCache {
     node.next.prev = node.prev;
   }
 
-  insertFront(node) {
+  insertAtFront(node) {
     node.next = this.head.next;
     node.prev = this.head;
     this.head.next.prev = node;
@@ -37,11 +38,11 @@ class LRUCache {
   }
 
   get(key) {
-    if (!this.map.has(key)) return -1;
+    if (!this.map.has(key)) return null;
 
     const node = this.map.get(key);
     this.remove(node);
-    this.insertFront(node);
+    this.insertAtFront(node);
     return node.value;
   }
 
@@ -50,7 +51,7 @@ class LRUCache {
       const node = this.map.get(key);
       node.value = value;
       this.remove(node);
-      this.insertFront(node);
+      this.insertAtFront(node);
       return;
     }
 
@@ -61,30 +62,40 @@ class LRUCache {
     }
 
     const node = new Node(key, value);
-    this.insertFront(node);
+    this.insertAtFront(node);
     this.map.set(key, node);
   }
 }
 
-// cache with capacity = 2
+// ================= Cache Instance =================
 const cache = new LRUCache(2);
 
-// ---------------- REST APIs ----------------
+// ================= REST APIs =================
 
-// Insert (correct REST way)
+// Root (optional but nice)
+app.get("/", (req, res) => {
+  res.send("LRU Cache API is running");
+});
+
+// Insert into cache
 app.post("/cache", (req, res) => {
   const { key, value } = req.body;
-  cache.put(key, value);
+
+  if (key === undefined || value === undefined) {
+    return res.status(400).json({ error: "Key and value are required" });
+  }
+
+  cache.put(Number(key), value);
   res.json({ message: "Inserted", key, value });
 });
 
-// Get value
+// Get from cache
 app.get("/cache/:key", (req, res) => {
-  const key = parseInt(req.params.key);
+  const key = Number(req.params.key);
   const value = cache.get(key);
 
-  if (value === -1) {
-    return res.json({ error: "Key not found" });
+  if (value === null) {
+    return res.status(404).json({ error: "Key not found" });
   }
 
   res.json({ key, value });
@@ -95,6 +106,9 @@ app.get("/status", (req, res) => {
   res.json({ status: "running" });
 });
 
-app.listen(3000, () => {
-  console.log("LRU Cache API running on port 3000");
+// ================= Server =================
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`LRU Cache API running on port ${PORT}`);
 });
